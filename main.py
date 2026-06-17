@@ -136,30 +136,77 @@ async def set_port(port, vlan):
     else:
         print("Success:", varBinds)
 
+
+
+import binascii
 async def inter():
-    descrs = await snmp_walk_raw(
-        'public',
-        "1.3.6.1.2.1.2.2.1.2"
-    )
-    
-    admins = await snmp_walk_raw(
-        'public',
-        "1.3.6.1.2.1.2.2.1.7"
-    )
+   
 
-    opers = await snmp_walk_raw(
-        'public',
-        "1.3.6.1.2.1.2.2.1.8"
-    )
+    # --- Helper Functions ---
 
+    def parse_to_dict(snmp_list):
+        """Splits '1.3.6.1.2.1.2.2.1.2.5' by '.' and grabs the last element '5' as an int key."""
+        return {int(oid.split('.')[-1]): val for oid, val in snmp_list}
+
+    def parse_ip_to_dict(snmp_list):
+        """
+        IP table (1.3.6.1.2.1.4.20.1.1) returns the IP address in the OID suffix, 
+        and the ifIndex as the value. We reverse this to map ifIndex -> IP string.
+        """
+        ip_map = {}
+        for oid, val in snmp_list:
+            try:
+                # The last 4 digits of the OID form the IP address (e.g., ...20.1.1.192.168.1.1)
+                parts = oid.split('.')
+                ip_str = ".".join(parts[-4:])
+                ifIndex = int(val)
+                ip_map[ifIndex] = ip_str
+            except (ValueError, IndexError):
+                continue
+        return ip_map
+
+    def format_mac(raw_mac):
+        """Converts raw bytes or octet strings into a standard aa:bb:cc:dd:ee:ff format."""
+        if not raw_mac:
+            return ""
+        # If it's already a string representation, handle it or convert bytes
+        if isinstance(raw_mac, bytes):
+            hex_str = binascii.hexlify(raw_mac).decode('utf-8')
+        else:
+            # Fallback for pretty printed / PySNMP native objects
+            hex_str = binascii.hexlify(bytes(raw_mac)).decode('utf-8')
+            
+        if len(hex_str) == 12:
+            return ":".join(hex_str[i:i+2] for i in range(0, 12, 2))
+        return str(raw_mac) # Fallback if it's an empty or abnormal string
+
+
+    # --- Main Logic ---
+
+    # 1. Fetch all raw walks asynchronously
+    descrs_raw = await snmp_walk_raw('public', "1.3.6.1.2.1.2.2.1.2")  # ifDescr
+    admins_raw = await snmp_walk_raw('public', "1.3.6.1.2.1.2.2.1.7")  # ifAdminStatus
+    opers_raw  = await snmp_walk_raw('public', "1.3.6.1.2.1.2.2.1.8")  # ifOperStatus
+    macs_raw   = await snmp_walk_raw('public', "1.3.6.1.2.1.2.2.1.6")  # ifPhysAddress
+    ips_raw    = await snmp_walk_raw('public', "1.3.6.1.2.1.4.20.1.1")  # ipAdEntAddr
+
+    # 2. Convert raw data to standardized lookup dictionaries keyed by ifIndex
+    descr_dict = parse_to_dict(descrs_raw)
+    admin_dict = parse_to_dict(admins_raw)
+    oper_dict  = parse_to_dict(opers_raw)
+    mac_dict   = parse_to_dict(macs_raw)
+    ip_dict    = parse_ip_to_dict(ips_raw)
+
+    # 3. Combine them by looping through the master interface list
     interfaces = []
-
-    for idx in sorted(descrs.keys()):
+    for idx in sorted(descr_dict.keys()):
         interfaces.append({
             "ifindex": idx,
-            "name": str(descrs.get(idx, "")),
-            "admin": STATUS.get(int(admins.get(idx, 0)), "unknown"),
-            "oper": STATUS.get(int(opers.get(idx, 0)), "unknown")
+            "name": str(descr_dict.get(idx, "")),
+            "admin": STATUS.get(int(admin_dict.get(idx, 0)), "unknown"),
+            "oper": STATUS.get(int(oper_dict.get(idx, 0)), "unknown"),
+            "mac": format_mac(mac_dict.get(idx, "")),
+            "ip": ip_dict.get(idx, "N/A")  # Uses "N/A" if no IP is bound to this interface
         })
     return interfaces
 
@@ -252,8 +299,11 @@ def interface():
                 print(
                     f"{p['ifindex']:3d} "
                     f"{p['name']:30s} "
+                    f"{p['mac']} "
+                    f"{p['ip']} "
                     f"admin={p['admin']:5s} "
                     f"oper={p['oper']}"
+
                 )
         elif(val == 6):
 

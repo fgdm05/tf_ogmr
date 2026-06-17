@@ -1,13 +1,4 @@
-CREATE SEQUENCE idCon AS int INCREMENT BY 1;
 
-CREATE SEQUENCE idRegistro AS int INCREMENT BY 1;
-CREATE TABLE registros(
-	idRegistro INT PRIMARY KEY NOT NULL,
-	inicio TIMESTAMPTZ NOT NULL,
-	fim TIMESTAMPTZ NOT NULL,
-	idCon INT NOT NULL REFERENCES conexoes (idCon)
-	acao VARCHAR(255) NOT NULL
-);
 -- Bloqueio ao acesso a internet da porta x 
 -- Desbloqueio ao acesso a internet da porta x
 -- Desbloqueio ao acesso a internet da porta x (AUTOMÁTICO)
@@ -19,8 +10,14 @@ CREATE TABLE registros(
 CREATE SEQUENCE idSala AS int INCREMENT BY 1;
 CREATE TABLE salas(
 	idSala INT PRIMARY KEY NOT NULL,
-	nome VARCHAR(255) NOT NULL
+	nome VARCHAR(255) NOT NULL,
+	gerente VARCHAR(17) -- MAC-ADDR
 );
+
+INSERT INTO salas VALUES (nextval('idSala'), 'F203');
+INSERT INTO salas VALUES (nextval('idSala'), 'F301');
+ALTER TABLE salas ADD COLUMN gerente VARCHAR(17);
+SELECT * FROM salas;
 
 CREATE SEQUENCE idPorta AS int INCREMENT BY 1;
 CREATE TABLE portas(
@@ -28,24 +25,21 @@ CREATE TABLE portas(
 	idSala INT REFERENCES salas (idSala)
 );
 
-CREATE TABLE conexoes(
-	idCon INT PRIMARY KEY NOT NULL,
-	porta INT NOT NULL REFERENCES portas (porta),
-	ip VARCHAR(15) NOT NULL,
-	mac VARCHAR(17) NOT NULL
-);
 
-CREATE TABLE gerenciamento(
-	idGerenciamento INT NOT NULL PRIMARY KEY,
-	idSala INT NOT NULL,
-	idProfessor INT NOT NULL
-);
+
+INSERT INTO portas VALUES (nextval('idPorta'), 2);
+SELECT * FROM portas;
 
 CREATE SEQUENCE idProfessor AS int INCREMENT BY 1;
 CREATE TABLE professores(
 	idProfessor INT PRIMARY KEY NOT NULL,
 	nomeProfessor VARCHAR(255) NOT NULL,
-	idSala INT REFERENCES salas (idSala)
+	senha VARCHAR(255) NOT NULL
 );
+SELECT * FROM professores;
+
+ALTER TABLE professores DROP COLUMN mac;
+INSERT INTO professores VALUES
+	(nextval('idProfessor'), 'Cristiano', 'cristiano')
 
 --DROP TABLE salas;

@@ -11,6 +11,7 @@ source ./venv/bin/activate
 
 pip install flask
 pip install pysnmp
+pip install psycopg2-binary
 ```
 ## Árvore de pastas
 ```text
