@@ -2,6 +2,7 @@ import sys
 import asyncio
 from pysnmp.hlapi.v3arch.asyncio import *
 import uuid
+#gateway = "10.204.132.51"
 gateway = '10.90.90.90'
 
 
@@ -86,7 +87,7 @@ async def snmp_walk(community, oid):
 
 
 async def snmp_walk_raw(community, oid):
-    transport = await UdpTransportTarget.create((gateway, 161))
+    transport = await UdpTransportTarget.create((gateway, 161), timeout=5.0)
 
     result = []
 
@@ -258,7 +259,7 @@ async def tabela():
         print(host)
 
 async def abrirTodas():
-    ports = await inter()
+    ports = await inter([])
     for port in range(1, 25, 1):
         print(f"Abrindo porta {port}")
         await set_port(port, 1)
@@ -298,7 +299,7 @@ def interface():
         elif(val == 4):
             asyncio.run(abrirTodas())
         elif(val == 5):
-            ports = asyncio.run(inter())
+            ports = asyncio.run(inter(list(range(1,25))))
 
             for p in ports:
                 print(
