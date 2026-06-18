@@ -5,10 +5,12 @@ import asyncio
 import psycopg2
 
 app = Flask(__name__)
+app.secret_key = 'your_secret_key'
 
 @app.route("/")
 def login(noAuth = False):
-	
+	if(noAuth):
+		session.permanent = False
 	return render_template('login.html', noAuth=noAuth)
 
 connection = psycopg2.connect(
@@ -51,7 +53,7 @@ def verif_mac(client_ip):
 	return (row, mac)
 @app.route("/logando", methods = ['POST'])
 def logando():
-	
+	session.permanent = True
 	client_ip = request.remote_addr
 	row, mac = verif_mac(client_ip)
 
@@ -76,7 +78,9 @@ def logando():
 				# fazer a lista de portas para recuperar para fazer a lista interna do logado
 				# ports = []
 				# while True:
-
+				ports = [x[0] for x in cursor.fetchall()]
+				interfaces = asyncio.run(inter(ports))
+				session['ports'] = interfaces
 				return redirect(url_for('logado'))
 
 	return redirect(url_for('login', noAuth = True))
@@ -99,5 +103,6 @@ def logado():
 	#     )
 	
 
-	ports = asyncio.run(inter())
+	#ports = asyncio.run(inter([1..24]))
+	ports = session.get('ports')
 	return render_template('index.html', ports = ports)

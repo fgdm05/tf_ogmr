@@ -118,19 +118,24 @@
 										<th scope="col"></th>
 									</tr>
 									{% for p in ports %}
-									<tr>
+									<form method="POST" action="{{ url_for('acao') }}">
+										<input type="hidden" name="port" value="{{ p }}">
 										
-										<td>{{ p.ifindex }}</td>
-										<td>{{ p.name }}</td>
-										<td>{{ p.mac }}</td>
-										<td>{{ p.ip }}</td>
-										
-										<td>{{p.admin}}</td>
-										<td>{{p.oper}}</td>
-										<td><button type="button" class="btn btn-outline-danger">Bloquear</button></td>
-										<td><button type="button" class="btn btn-outline-success">Liberar</button></td>
-										
-									</tr>
+
+										<tr>
+											
+											<td>{{ p.ifindex }}</td>
+											<td>{{ p.name }}</td>
+											<td>{{ p.mac }}</td>
+											<td>{{ p.ip }}</td>
+											
+											<td>{{p.admin}}</td>
+											<td>{{p.oper}}</td>
+											<td><button type="submit" class="btn btn-outline-danger" name="acao" value=1>Bloquear</button></td>
+											<td><button type="submit" class="btn btn-outline-success" name="acao" value=2>Liberar</button></td>
+											
+										</tr>
+									</form>
 									{% endfor %}
 								</table>
 							</div>

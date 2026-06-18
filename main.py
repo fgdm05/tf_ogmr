@@ -139,7 +139,7 @@ async def set_port(port, vlan):
 
 
 import binascii
-async def inter():
+async def inter(ports):
    
 
     # --- Helper Functions ---
@@ -200,14 +200,19 @@ async def inter():
     # 3. Combine them by looping through the master interface list
     interfaces = []
     for idx in sorted(descr_dict.keys()):
-        interfaces.append({
-            "ifindex": idx,
-            "name": str(descr_dict.get(idx, "")),
-            "admin": STATUS.get(int(admin_dict.get(idx, 0)), "unknown"),
-            "oper": STATUS.get(int(oper_dict.get(idx, 0)), "unknown"),
-            "mac": format_mac(mac_dict.get(idx, "")),
-            "ip": ip_dict.get(idx, "N/A")  # Uses "N/A" if no IP is bound to this interface
-        })
+        if(idx in ports):
+            interfaces.append({
+                "ifindex": idx,
+                "name": str(descr_dict.get(idx, "")),
+                "admin": STATUS.get(int(admin_dict.get(idx, 0)), "unknown"),
+                "oper": STATUS.get(int(oper_dict.get(idx, 0)), "unknown"),
+                "mac": format_mac(mac_dict.get(idx, "")),
+                "ip": ip_dict.get(idx, "N/A")  # Uses "N/A" if no IP is bound to this interface
+            })
+        else: 
+            continue
+    print("###################################")
+    print(interfaces)
     return interfaces
 
 async def tabela():
