@@ -166,11 +166,21 @@ def logado():
 	# print('ports')
 	# print(ports)
 	# interfaces = asyncio.run(inter(ports))
-	portss = get_tabela(session.get('idSala'))
-	interfaces = asyncio.run(inter(portss))
-	#ports = asyncio.run(inter(list(range(1,24))))
-	#ports = session.get('ports')
-	return render_template('index.html', ports = interfaces)
+	# 1. Busca os dados do banco e do Switch
+	portss = get_tabela(session.get('idSala')) # Ex: [1, 2, 3]
+	interfaces = asyncio.run(mapear_todas_as_portas())
+
+	# 2. Garante que todas as portas do banco sejam tratadas como INTEIROS
+	portas_permitidas = {int(p) for p in portss}
+
+	# 3. Filtra convertendo a chave do SNMP (ifindex) para INTEIRO antes de testar
+	interfaces_filtradas = {
+	    ifindex: dados for ifindex, dados in interfaces.items() 
+	    if int(ifindex) in portas_permitidas
+	}
+
+	# 4. CHAVE DO SUCESSO: envie "interfaces_filtradas" para o seu HTML
+	return render_template("index.html", ports=interfaces_filtradas)
 
 
 async def descobrirMinhaPorta(mac_alvo):

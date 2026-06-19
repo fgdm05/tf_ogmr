@@ -2,6 +2,7 @@ import sys
 import asyncio
 from pysnmp.hlapi.v3arch.asyncio import *
 import uuid
+from itertools import groupby
 #gateway = "10.204.132.51"
 gateway = '10.90.90.90'
 
@@ -113,6 +114,73 @@ async def snmp_walk_raw(community, oid):
             result.append((str(oid_obj), value))
 
     return result
+
+STATUS_MAP = {
+    '1': 'Up (Ligada)', '2': 'Down (Desligada)', '3': 'Testing',
+    '4': 'Unknown', '5': 'Dormant', '6': 'NotPresent', '7': 'LowerLayerDown'
+}
+
+# Funções auxiliares rápidas para formatar e limpar os MAC Addresses
+def limpar_mac_arp(val):
+    m = val.prettyPrint()[2:] if val.prettyPrint().startswith("0x") else val.prettyPrint()
+    return ":".join(m[i:i+2] for i in range(0, len(m), 2)).upper()
+
+def extrair_mac_oid(oid_str):
+    return ":".join(f"{int(x):02x}" for x in oid_str.split('.')[-6:]).upper()
+
+
+async def mapear_todas_as_portas():
+    print("[INFO] Disparando todos os SNMP WALKs em paralelo...")
+    
+    community="public"
+    resultados = await asyncio.gather(
+        snmp_walk_raw(community, "1.3.6.1.2.1.2.2.1.2"),    # 0: Nomes (ifDescr)
+        snmp_walk_raw(community, "1.3.6.1.2.1.2.2.1.7"),    # 1: AdminStatus
+        snmp_walk_raw(community, "1.3.6.1.2.1.2.2.1.8"),    # 2: OperStatus
+        snmp_walk_raw(community, "1.3.6.1.2.1.4.22.1.2"),   # 3: ARP Table (IP -> MAC)
+        snmp_walk_raw(community, "1.3.6.1.2.1.17.1.4.1.2"), # 4: Bridge Port -> ifIndex
+        snmp_walk_raw(community, "1.3.6.1.2.1.17.4.3.1.2"), # 5: MAC -> Bridge Port
+        return_exceptions=True
+    )
+    
+    
+    w_nomes  = resultados[0] if not isinstance(resultados[0], Exception) else []
+    w_admin  = resultados[1] if not isinstance(resultados[1], Exception) else []
+    w_oper   = resultados[2] if not isinstance(resultados[2], Exception) else []
+    w_arp    = resultados[3] if not isinstance(resultados[3], Exception) else []
+    w_bridge = resultados[4] if not isinstance(resultados[4], Exception) else []
+    w_macs   = resultados[5] if not isinstance(resultados[5], Exception) else []
+
+    
+    admin_map  = {oid.split('.')[-1]: STATUS_MAP.get(str(val), str(val)) for oid, val in w_admin}
+    oper_map   = {oid.split('.')[-1]: STATUS_MAP.get(str(val), str(val)) for oid, val in w_oper}
+    bridge_map = {oid.split('.')[-1]: str(val) for oid, val in w_bridge}
+    arp_map    = {limpar_mac_arp(val): ".".join(oid.split('.')[-4:]) for oid, val in w_arp}
+
+    
+    mac_list_ordenada = sorted(
+        [
+            (bridge_map.get(str(val)), extrair_mac_oid(oid), arp_map.get(extrair_mac_oid(oid), "Desconhecido"))
+            for oid, val in w_macs if bridge_map.get(str(val))
+        ],
+        key=lambda x: x[0]
+    )
+    mac_grouped = {k: [{'mac': m, 'ip': i} for _, m, i in g] for k, g in groupby(mac_list_ordenada, key=lambda x: x[0])}
+
+    
+    portas = {}
+    for oid, val in w_nomes:
+        ifindex = oid.split('.')[-1]
+        portas[ifindex] = {
+            'ifindex': ifindex,
+            'nome': str(val),
+            'admin_status': admin_map.get(ifindex, 'Desconhecido'),
+            'oper_status': oper_map.get(ifindex, 'Desconhecido'),
+            'dispositivos': mac_grouped.get(ifindex, []) 
+        }
+
+    return portas
+
 
 async def set_port(port, vlan):
     errorIndication, errorStatus, errorIndex, varBinds = await set_cmd(

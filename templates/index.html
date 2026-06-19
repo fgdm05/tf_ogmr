@@ -104,13 +104,13 @@
 										<th scope="col">IP</th>
 										<th scope="col">Endereço MAC</th>
 					
-										<th scope="col">Status conectado</th>
-										<th scope="col">Status lógico</th>
+										<th scope="col">Acesso</th>
+										<th scope="col">Conectado</th>
 										<th scope="col"></th>
 										<th scope="col"></th>
 									</tr>
 									
-									{% for p in ports %}
+									{% for p in ports.values() %}
 									<form method="POST" action="{{ url_for('acao') }}">
 										<input type="hidden" name="port" value="{{ p.ifindex }}">
 										
@@ -118,14 +118,20 @@
 										<tr>
 											
 											<td>{{ p.ifindex }}</td>
-											<td>{{ p.name }}</td>
-											<td>{{ p.ip }}</td>
-											<td>{{ p.mac }}</td>
+											<td>{{ p.nome }}</td>
+											<td>
+												{% for dev in p.dispositivos %}
+													{{ dev.ip }}
+												{% endfor%}
+											</td>
+											<td>{% for dev in p.dispositivos %}
+													{{ dev.mac }}
+												{% endfor%}</td>
 											
-											<td>{{p.admin}}</td>
-											<td>{{p.oper}}</td>
+											<td>{{p.admin_status}}</td>
+											<td>{{p.oper_status}}</td>
 											
-											{% if p.admin=="up" %}
+											{% if "Up (Ligado)" in p.admin_status %}
 											<td><button type="button" class="btn btn-outline-danger" name="acao" value=1 data-toggle="modal" data-target="#myModal{{p.ifindex}}">Bloquear</button></td>
 											<!-- Modal -->
 											  <div class="modal fade" id="myModal{{p.ifindex}}" role="dialog">
