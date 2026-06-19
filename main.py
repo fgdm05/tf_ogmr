@@ -22,7 +22,7 @@ async def run(OID = "sysDescr", local = "SNMPv2-MIB", gateway = "demo.pysnmp.com
         CommunityData(community, mpModel=0),
         await UdpTransportTarget.create((gateway, port)),
         ContextData(),
-        ObjectType(ObjectIdentity(local, OID, 0)),
+        ObjectType(ObjectIdentity(OID)),
     )
 
     errorIndication, errorStatus, errorIndex, varBinds = await iterator
@@ -41,7 +41,9 @@ async def run(OID = "sysDescr", local = "SNMPv2-MIB", gateway = "demo.pysnmp.com
         for varBind in varBinds:
             print(" = ".join([x.prettyPrint() for x in varBind]))
 
+
     snmpEngine.close_dispatcher()
+    return varBinds
 
 # snmpwalk -v1 -c private 10.90.90.90
 # snmpwalk -v1 -c public 10.90.90.90 dot1dTpFdbTable
@@ -213,7 +215,7 @@ async def inter(ports):
         else: 
             continue
     print("###################################")
-    print(interfaces)
+    
     return interfaces
 
 async def tabela():
