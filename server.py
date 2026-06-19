@@ -144,7 +144,7 @@ def nao_autorizado():
 def get_tabela(idSala):
 	query3 = 'SELECT * FROM portas WHERE idSala=%s'
 	cursor.execute(query3, (idSala,))
-	ports = [x[0] for x in cursor.fetchall()]
+	ports = [x[0] for x in cursor.fetchall() if x[2]]
 	return ports
 
 @app.route("/logado")
