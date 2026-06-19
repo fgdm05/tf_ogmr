@@ -131,7 +131,7 @@
 											<td>{{p.admin_status}}</td>
 											<td>{{p.oper_status}}</td>
 											
-											{% if "Up (Ligado)" in p.admin_status %}
+											{% if "Up (Ligada)" in p.admin_status %}
 											<td><button type="button" class="btn btn-outline-danger" name="acao" value=1 data-toggle="modal" data-target="#myModal{{p.ifindex}}">Bloquear</button></td>
 											<!-- Modal -->
 											  <div class="modal fade" id="myModal{{p.ifindex}}" role="dialog">

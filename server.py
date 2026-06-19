@@ -5,7 +5,7 @@ import asyncio
 import psycopg2
 import netifaces
 from crontab import CronTab
-from datetime import datetime		
+from datetime import datetime, timezone
 import os
 import time
 from getmac import get_mac_address
@@ -84,12 +84,14 @@ def logando():
 				
 				#session['ports'] = interfaces
 				session['idSala'] = row[0]
+				session['idProfessor'] = one[0]
+				print(f'idProf: {one[0]}')
 				return redirect(url_for('logado'))
 
 	return redirect(url_for('login', noAuth = True))
 
 
-def agendar(inicio, fim, port):
+def agendar(inicio, fim, port, idProfessor, idSala):
 	print('acao2')
 	
 	print(inicio)
@@ -111,6 +113,16 @@ def agendar(inicio, fim, port):
 	tempo2 = f"{fim.minute} {fim.hour} {fim.day} {fim.month} *"
 	comando2 = f'(crontab -l 2>/dev/null; echo "{tempo2} {py} {cron2} {portaa} 10.90.90.90 1") | crontab -'
 	os.system(comando2)
+	
+	querySet = f"INSERT INTO acoes VALUES (nextval('idAcao'), %s, %s, %s, %s, %s, %s)"
+	querySet2 = f"INSERT INTO acoes VALUES (nextval('idAcao'), %s, %s, %s, %s, %s, %s)"
+	
+	cursor.execute(querySet, (1, port, inicio, fim, idProfessor, idSala))
+	cursor.execute(querySet2, (2, port, inicio, fim, idProfessor, idSala))
+	connection.commit()
+	# querySet = f"INSERT INTO acoes VALUES (nextValue(idAcao), {acao}, {port}, {inicio}, {fim})"
+		
+
 
 gateway = "10.90.90.90"
 
@@ -128,10 +140,11 @@ def acao():
 		if(fim < inicio):
 			print('Data de fim não pode ser antes da data de início')
 			return redirect(url_for('logado'))
-		agendar(inicio, fim, port)
+		agendar(inicio, fim, port, session.get('idProfessor'), session.get('idSala'))
 
 	elif(acao == "1"):
 		asyncio.run(set_port(int(port), 1))
+		
 		time.sleep(1.5)
 
 	return redirect(url_for('logado', refresh=time.time()))
@@ -189,11 +202,15 @@ async def descobrirMinhaPorta(mac_alvo):
 	print(f"minha porta: {porta}")
 	return porta
 
-async def bloquear(ports, minhaPorta):
+async def bloquear(ports, minhaPorta, idProfessor, idSala):
 	corotinas = []
 	for p in ports:
 		if(minhaPorta != p):
 			corotinas.append(await set_port(p,2))
+			agora = datetime.now(timezone.utc)
+			querySet = f"INSERT INTO acoes VALUES (nextval('idAcao'), %s, %s, %s, %s, %s, %s)"
+			cursor.execute(querySet, (2, p, agora, agora, idProfessor, idSala))
+			connection.commit()
 		else:
 			print('Não bloqueando a minha porta')
 	# results = await asyncio.gather(*corotinas)
@@ -210,7 +227,7 @@ def bloquearTodas():
 
 
 	#coroutines = [await set_port(p, 2) for p in ports] 
-	res = asyncio.run(bloquear(ports, port[0][1]))
+	res = asyncio.run(bloquear(ports, port[0][1], session.get('idProfessor'), session.get('idSala')))
 	# for p in ports:
 	# 	if(port != p):
 	# 		asyncio.create_task(set_port(p,2))
@@ -239,7 +256,7 @@ def agendarBloqueio():
 
 	for p in ports:
 		if(port[0][1] != p):
-			agendar(inicio, fim, p)
+			agendar(inicio, fim, p, session.get('idProfessor'), session.get('idSala'))
 	
 	return redirect(url_for("logado"))
 
@@ -250,6 +267,10 @@ def liberarTodas():
 	msg = "Portas "
 	for p in ports:
 		asyncio.run(set_port(p, 1))
+		agora = datetime.now(timezone.utc)
+		querySet = f"INSERT INTO acoes VALUES (nextval('idAcao'), %s, %s, %s, %s, %s, %s)"
+		cursor.execute(querySet, (1, p, agora, agora, session.get('idProfessor'), session.get('idSala')))
+		connection.commit()
 		msg += f"{p} "
 	msg += "liberadas!"
 	print(msg)
